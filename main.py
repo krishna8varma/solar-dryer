@@ -5,6 +5,7 @@ import seaborn as sns
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+import json
 
 # Streamlit app configuration
 st.set_page_config(page_title='Data Visualiser', layout="centered", page_icon="📊")
@@ -12,7 +13,11 @@ st.title("📊 Data Visualiser")
 
 # Google Sheets setup
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name('shining-reality-431616-d5-6035b47230cb.json', scope)
+
+# Load credentials from environment variable
+credentials_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS')
+creds_dict = json.loads(credentials_json)
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
 # Fetch list of Google Sheets
