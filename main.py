@@ -31,7 +31,7 @@ creds_dict = {
     "client_x509_cert_url": credentials_json["client_x509_cert_url"]
 }
 # Debugging: Print the credentials_json to verify
-st.write("Credentials JSON:", credentials_json)
+#st.write("Credentials JSON:", credentials_json)
 
 if credentials_json is None:
     st.error("Error: GOOGLE_SHEETS_CREDENTIALS environment variable not set.")
