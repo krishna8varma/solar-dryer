@@ -16,74 +16,84 @@ scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 
 # Load credentials from environment variable
 credentials_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS')
-creds_dict = json.loads(credentials_json)
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-client = gspread.authorize(creds)
 
-# Fetch list of Google Sheets
-sheet_list = client.openall()
-sheet_names = [sheet.title for sheet in sheet_list]
+# Debugging: Print the credentials_json to verify
+st.write("Credentials JSON:", credentials_json)
 
-selected_sheet = st.selectbox("Select a Google Sheet", sheet_names, index=None)
+if credentials_json is None:
+    st.error("Error: GOOGLE_SHEETS_CREDENTIALS environment variable not set.")
+else:
+    try:
+        creds_dict = json.loads(credentials_json)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        client = gspread.authorize(creds)
 
-if selected_sheet:
-    # Open the selected Google Sheet
-    spreadsheet = client.open(selected_sheet)
+        # Fetch list of Google Sheets
+        sheet_list = client.openall()
+        sheet_names = [sheet.title for sheet in sheet_list]
 
-    # Fetch list of worksheets (sheets) within the Google Sheet
-    worksheet_list = spreadsheet.worksheets()
-    worksheet_names = [worksheet.title for worksheet in worksheet_list]
+        selected_sheet = st.selectbox("Select a Google Sheet", sheet_names, index=None)
 
-    selected_worksheet = st.selectbox("Select a Worksheet", worksheet_names, index=None)
+        if selected_sheet:
+            # Open the selected Google Sheet
+            spreadsheet = client.open(selected_sheet)
 
-    if selected_worksheet:
-        # Open the selected worksheet
-        worksheet = spreadsheet.worksheet(selected_worksheet)
-        data = worksheet.get_all_records()
-        df = pd.DataFrame(data)
+            # Fetch list of worksheets (sheets) within the Google Sheet
+            worksheet_list = spreadsheet.worksheets()
+            worksheet_names = [worksheet.title for worksheet in worksheet_list]
 
-        # Ensure 'Date' column is in datetime format
-        df['Date'] = pd.to_datetime(df['Date'])
+            selected_worksheet = st.selectbox("Select a Worksheet", worksheet_names, index=None)
 
-        # Filter data based on selected date
-        unique_dates = df['Date'].dt.date.unique()
-        selected_date = st.selectbox("Select a Date", unique_dates, index=None)
+            if selected_worksheet:
+                # Open the selected worksheet
+                worksheet = spreadsheet.worksheet(selected_worksheet)
+                data = worksheet.get_all_records()
+                df = pd.DataFrame(data)
 
-        if selected_date:
-            filtered_df = df[df['Date'].dt.date == selected_date]
+                # Ensure 'Date' column is in datetime format
+                df['Date'] = pd.to_datetime(df['Date'])
 
-            col1, col2 = st.columns(2)
-            columns = filtered_df.columns.tolist()
-            columns.remove('Time')  # Remove 'Time' from parameter selection as it will be used for x-axis
+                # Filter data based on selected date
+                unique_dates = df['Date'].dt.date.unique()
+                selected_date = st.selectbox("Select a Date", unique_dates, index=None)
 
-            with col1:
-                st.write(" ")
-                st.write(filtered_df.head())
+                if selected_date:
+                    filtered_df = df[df['Date'].dt.date == selected_date]
 
-            with col2:
-                y_axis = st.selectbox("Select the Parameter", options=columns + ["None"])
-                plot_list = ["Line Plot", "Bar Chart", "Scatter Plot", "Distribution Plot", "Count Plot"]
-                selected_plot = st.selectbox("Select a Plot", plot_list, index=None)
+                    col1, col2 = st.columns(2)
+                    columns = filtered_df.columns.tolist()
+                    columns.remove('Time')  # Remove 'Time' from parameter selection as it will be used for x-axis
 
-            if st.button("Generate Plot"):
-                fig, ax = plt.subplots(figsize=(10, 8))
-                if selected_plot == "Line Plot":
-                    sns.lineplot(x=filtered_df['Time'], y=filtered_df[y_axis], ax=ax)
-                elif selected_plot == "Bar Chart":
-                    sns.barplot(x=filtered_df['Time'], y=filtered_df[y_axis], ax=ax)
-                elif selected_plot == "Distribution Plot":
-                    sns.histplot(filtered_df[y_axis], kde=True, ax=ax)
-                elif selected_plot == "Scatter Plot":
-                    sns.scatterplot(x=filtered_df['Time'], y=filtered_df[y_axis], ax=ax)
-                elif selected_plot == "Count Plot":
-                    sns.countplot(x=filtered_df['Time'], ax=ax)
+                    with col1:
+                        st.write(" ")
+                        st.write(filtered_df.head())
 
-                plt.title(f"{selected_worksheet} on {selected_date}: {y_axis} vs Time")
-                plt.xlabel('Time')
-                plt.ylabel(y_axis)
+                    with col2:
+                        y_axis = st.selectbox("Select the Parameter", options=columns + ["None"])
+                        plot_list = ["Line Plot", "Bar Chart", "Scatter Plot", "Distribution Plot", "Count Plot"]
+                        selected_plot = st.selectbox("Select a Plot", plot_list, index=None)
 
-                # Rotate x-axis labels and set font size
-                plt.xticks(rotation=45, ha='right', fontsize=10)
-                plt.tight_layout()  # Adjust layout to make room for x-axis labels
+                    if st.button("Generate Plot"):
+                        fig, ax = plt.subplots(figsize=(10, 8))
+                        if selected_plot == "Line Plot":
+                            sns.lineplot(x=filtered_df['Time'], y=filtered_df[y_axis], ax=ax)
+                        elif selected_plot == "Bar Chart":
+                            sns.barplot(x=filtered_df['Time'], y=filtered_df[y_axis], ax=ax)
+                        elif selected_plot == "Distribution Plot":
+                            sns.histplot(filtered_df[y_axis], kde=True, ax=ax)
+                        elif selected_plot == "Scatter Plot":
+                            sns.scatterplot(x=filtered_df['Time'], y=filtered_df[y_axis], ax=ax)
+                        elif selected_plot == "Count Plot":
+                            sns.countplot(x=filtered_df['Time'], ax=ax)
 
-                st.pyplot(fig)
+                        plt.title(f"{selected_worksheet} on {selected_date}: {y_axis} vs Time")
+                        plt.xlabel('Time')
+                        plt.ylabel(y_axis)
+
+                        # Rotate x-axis labels and set font size
+                        plt.xticks(rotation=45, ha='right', fontsize=10)
+                        plt.tight_layout()  # Adjust layout to make room for x-axis labels
+
+                        st.pyplot(fig)
+    except json.JSONDecodeError:
+        st.error("Error: Invalid JSON in GOOGLE_SHEETS_CREDENTIALS environment variable.")
