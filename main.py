@@ -15,8 +15,21 @@ st.title("📊 Data Visualiser")
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 # Load credentials from environment variable
-credentials_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS')
+credentials_json = st.secrets["GOOGLE_SHEETS_CREDENTIALS"]
 
+# Convert the credentials JSON from TOML format to a dictionary
+creds_dict = {
+    "type": credentials_json["type"],
+    "project_id": credentials_json["project_id"],
+    "private_key_id": credentials_json["private_key_id"],
+    "private_key": credentials_json["private_key"],
+    "client_email": credentials_json["client_email"],
+    "client_id": credentials_json["client_id"],
+    "auth_uri": credentials_json["auth_uri"],
+    "token_uri": credentials_json["token_uri"],
+    "auth_provider_x509_cert_url": credentials_json["auth_provider_x509_cert_url"],
+    "client_x509_cert_url": credentials_json["client_x509_cert_url"]
+}
 # Debugging: Print the credentials_json to verify
 st.write("Credentials JSON:", credentials_json)
 
@@ -24,7 +37,6 @@ if credentials_json is None:
     st.error("Error: GOOGLE_SHEETS_CREDENTIALS environment variable not set.")
 else:
     try:
-        creds_dict = json.loads(credentials_json)
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
 
