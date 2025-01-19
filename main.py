@@ -8,66 +8,92 @@ from oauth2client.service_account import ServiceAccountCredentials
 import json
 
 # Streamlit app configuration
-st.set_page_config(page_title='Solar Dryer Data', layout="wide", page_icon="\ud83d\udd0d")
+st.set_page_config(page_title="Solar Dryer Data", layout="wide", page_icon=":sun_with_face:")
 
 # Define app pages
 PAGES = {
-    "Home": "home",
-    "Data Visualizer": "data_visualizer",
+    "Overview": "overview",
+    "Visualize Data": "visualize"
 }
 
-# Navigation logic
-if 'page' not in st.session_state:
-    st.session_state.page = "Home"
-
-# Define function to set the page
-def set_page(page_name):
-    st.session_state.page = PAGES[page_name]
-
-# Display navigation bar
+# Sidebar Navigation
 st.sidebar.title("Navigation")
-for page_name in PAGES.keys():
-    if st.sidebar.button(page_name):
-        set_page(page_name)
+page = st.sidebar.radio("Go to", list(PAGES.keys()))
 
 # Google Sheets setup
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-credentials_json = os.getenv('GOOGLE_SHEETS_CREDENTIALS')
-creds_dict = json.loads(credentials_json)
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+
+# Google Service Account Credentials (Directly included in the code)
+credentials = {
+    "type": "service_account",
+    "project_id": "shining-reality-431616-d5",
+    "private_key_id": "6035b47230cbab372662000ba24db269b38eba58",
+    "private_key": """-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDcdgT1OJnbZO0O
+RB8orkTpqerTvXP5VzSA9jmhYbx+bg50k9nRe0gysUr7X2XQKqgOQW3aHgrnvf8k
+wNjD6RvX5zmchuZi0FgaFMNl/InHR8aQvIAwyippZ8rD1wgk0TAi8A80OY2VJJjT
+6/k2JV3vHE9Y7XL/DrtbMPIJZQs8VwIsrvdE4ZL83S1pXYQlqzNIEMVMgr5b1bMV
+Qf8uOFHNCh9kQZCKrIFVdBTz3TglyC1JzPndpR4lVXmuusdX62Aw1S76OU568TbR
+qcJwPjgi6HY3t/8ReVXWRPsgLLLvPbwTY9eyX1NZq78yYh4IYI7F6tjl71YhAM2k
+q/7SIK9XAgMBAAECggEAKTkeQzZCur37/6toQiSX+TNPGCm4Slruk+C2tQEADIoK
+xOyykZOiU+xH74oOkSawxv2gC2WLt3qU/2vZ/IQVs0DmymiFItv/ZV0Vjnfy0WMP
+85dzxuu+k3gXd5g5Sx0ciaPmy+apHUa7FwFsV54UGvZpteCsnJnGGc6kq3IL8Euh
+0UUpEv2IQ4ThnB6CV63bOLe9O+zbj/CXEUnYhFc3JEff7DzEHr0GMy/ugjgwhs0C
+O5XGkiMYgUGL+VuBppCCmJO+6MP3W238mI+7phByOXcCEeagSLT7K4Se8bye2wiR
+dwr4Tfizk2U+pJRNxSseQ9c0FA1RBz7NevTQkJ/T3QKBgQD2xmKInmGivfTSrCYr
+OXUjY3BJfVsX3YYgN+ERaW4jlW/LmJrYR6886q9/4SZdkxtV2M/dcTqNy1uT1uAd
+pxCLXIFllonfdBPw71atWPqF1KdzNC6GFAog3ANMqcOLXntG4pDGaf5TvbrRkemy
+kVi4uKSWqXT/82CEyiwkb7/2rQKBgQDks8/7SoSCFGnseu3Ic7Y8i2UVRrfwmHD/
+fIByItfqkGg3vM4Ecs3eVQ9lk2z1sFFXZyDZ3m6VELkqGqwRIKqtCBYWZrTfgJW5
+JS1RnUC0ApWgjKLG/28wSaeLFnsw/oTM1WZGKu8VL9EXM8IqZxqmNBmGHSe0FCoV
+J7QpceFykwKBgQCC4PiFSKqzq1dbHF4p8pFDsYtuDoPvhleKYtiFaYs2aB0gt9D4
+ABzajAWEJx835btLrm+gHFtXtJDfOcknMOG/Z9Jg1JRO5LtmvykTSuujawNcQEKk
+baBpiQZe9HJ3SibLk4IBGVn/g9K/L0nooNmTLqpsFXet/6AjDS6YLIR9CQKBgQDD
++e2sOVPJH/MQqNpf3f/4a77H95yheA/EboymwYLiRrJ3qLulhjcxYRRbh3RkKJ3b
+Vs0IxRlfdUAme0qdNq/qrDY5JfOyXj5utBPcjvMmDdzoAftuqO4/o64FetM/zapA
+2FDWqe3L6viyeDDXIxjr+VMx4IPoRSs2i5pPtX1qLwKBgBsC5Z/LnBb3bbqylN5u
+D84mBVZ2zw2RgKIV4upBH515fC+vJOjip9G8BY8fsDD4b0PA014c/gkdPC6+38Vf
+FO7LfglYrm26GcsKaME87QfDF2uTWamQGEZPKmNWdQLaF28uzXepTMGJwtDWXYMk
+fmvKCgD4ht3vFYE1ohD8Zl+u
+-----END PRIVATE KEY-----""",
+    "client_email": "solar-dryer@shining-reality-431616-d5.iam.gserviceaccount.com",
+    "client_id": "114008855893744940682",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/solar-dryer%40shining-reality-431616-d5.iam.gserviceaccount.com",
+    "universe_domain": "googleapis.com"
+}
+
+# Convert credentials into a dictionary and authorize
+creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials, scope)
 client = gspread.authorize(creds)
 
 sheet_list = client.openall()
 
-# Page 1: Home
-if st.session_state.page == "Home":
-    st.title("\ud83c\udf0b Solar Dryer Data")
-    st.write("Select a sheet to view its details.")
-    col1, col2 = st.columns(2)
+if page == "Overview":
+    st.title("📈 Solar Dryer Data Overview")
 
-    for idx, sheet in enumerate(sheet_list):
-        worksheet = sheet.get_worksheet(0)  # Assuming first worksheet contains relevant data
+    for sheet in sheet_list:
+        sheet_name = sheet.title
+        worksheet = sheet.sheet1
         data = worksheet.get_all_records()
         df = pd.DataFrame(data)
 
-        # Calculate averages if columns exist
-        avg_temp = df['Temperature'].mean() if 'Temperature' in df.columns else None
-        avg_hum = df['Humidity'].mean() if 'Humidity' in df.columns else None
+        if "Temperature" in df.columns and "Humidity" in df.columns:
+            avg_temp = df["Temperature"].mean()
+            avg_humidity = df["Humidity"].mean()
 
-        # Display in alternating columns
-        with col1 if idx % 2 == 0 else col2:
-            st.subheader(sheet.title)
-            if avg_temp is not None and avg_hum is not None:
-                st.metric("Avg Temperature", f"{avg_temp:.2f} °C")
-                st.metric("Avg Humidity", f"{avg_hum:.2f} %")
-            else:
-                st.write("No temperature or humidity data available.")
+            st.write(
+                f"### {sheet_name}\n"
+                f"- **Average Temperature**: {avg_temp:.2f}°C\n"
+                f"- **Average Humidity**: {avg_humidity:.2f}%\n"
+            )
 
-# Page 2: Data Visualizer
-elif st.session_state.page == "Data Visualizer":
-    st.title("\ud83d\udd0d Data Visualiser")
-
+elif page == "Visualize Data":
+    st.title("📊 Data Visualizer")
     sheet_names = [sheet.title for sheet in sheet_list]
+
     selected_sheet = st.selectbox("Select a Google Sheet", sheet_names, index=None)
 
     if selected_sheet:
