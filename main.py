@@ -64,96 +64,116 @@ fmvKCgD4ht3vFYE1ohD8Zl+u
     "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/solar-dryer%40shining-reality-431616-d5.iam.gserviceaccount.com",
     "universe_domain": "googleapis.com"
 }
-
 # Convert credentials into a dictionary and authorize
 creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials, scope)
 client = gspread.authorize(creds)
 
-sheet_list = client.openall()
+# Define the Google Sheet name directly
+spreadsheet_name = "Solar Dryer Comparative Study"
+spreadsheet = client.open(spreadsheet_name)
+
+sheet_list = spreadsheet.worksheets()
 
 if page == "Overview":
     st.title("📈 Solar Dryer Data Overview")
 
-    for sheet in sheet_list:
-        sheet_name = sheet.title
-        worksheet = sheet.sheet1
+    # Define the Solar Dryer sheet names
+    dryer_sheets = ["Solar Dryer 1", "Solar Dryer 2", "Solar Dryer 3"]
+
+    # Iterate over the dryer sheets and display the data
+    for dryer in dryer_sheets:
+        worksheet = spreadsheet.worksheet(dryer)
         data = worksheet.get_all_records()
         df = pd.DataFrame(data)
 
-        if "Temperature" in df.columns and "Humidity" in df.columns:
-            avg_temp = df["Temperature"].mean()
-            avg_humidity = df["Humidity"].mean()
+        # Ensure Date is in datetime format
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
 
-            st.write(
-                f"### {sheet_name}\n"
-                f"- **Average Temperature**: {avg_temp:.2f}°C\n"
-                f"- **Average Humidity**: {avg_humidity:.2f}%\n"
-            )
+        # Drop rows with invalid dates
+        df = df.dropna(subset=['Date'])
+
+        # Get the latest date
+        latest_date = df['Date'].max()
+
+        # Filter data for the latest date
+        latest_date_data = df[df['Date'] == latest_date]
+
+        # Columns for temperature and humidity
+        temperature_columns = [col for col in df.columns if "Temperature" in col]
+        humidity_columns = [col for col in df.columns if "Humidity" in col]
+
+        # Calculate averages, ignoring NaN values
+        avg_temperature = latest_date_data[temperature_columns].mean().mean(skipna=True)
+        avg_humidity = latest_date_data[humidity_columns].mean().mean(skipna=True)
+
+        # Display data
+        st.write(
+            f"### {dryer}\n"
+            f"- **Latest Date**: {latest_date.date()}\n"
+            f"- **Average Temperature**: {avg_temperature:.2f}°C\n"
+            f"- **Average Humidity**: {avg_humidity:.2f}%\n"
+        )
+
 
 elif page == "Visualize Data":
     st.title("📊 Data Visualizer")
+
     sheet_names = [sheet.title for sheet in sheet_list]
 
-    selected_sheet = st.selectbox("Select a Google Sheet", sheet_names, index=None)
+    selected_sheet = st.selectbox("Select a Sheet", sheet_names, index=None)
 
     if selected_sheet:
-        # Open the selected Google Sheet
-        spreadsheet = client.open(selected_sheet)
+        # Open the selected sheet
+        worksheet = spreadsheet.worksheet(selected_sheet)
+        data = worksheet.get_all_records()
+        df = pd.DataFrame(data)
 
-        # Fetch list of worksheets (sheets) within the Google Sheet
-        worksheet_list = spreadsheet.worksheets()
-        worksheet_names = [worksheet.title for worksheet in worksheet_list]
+        # Ensure 'Date' column is in datetime format
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
 
-        selected_worksheet = st.selectbox("Select a Worksheet", worksheet_names, index=None)
+        # Drop rows with invalid dates
+        df = df.dropna(subset=['Date'])
 
-        if selected_worksheet:
-            # Open the selected worksheet
-            worksheet = spreadsheet.worksheet(selected_worksheet)
-            data = worksheet.get_all_records()
-            df = pd.DataFrame(data)
+        # Filter data based on selected date
+        unique_dates = df['Date'].dt.date.unique()
+        selected_date = st.selectbox("Select a Date", unique_dates, index=None)
 
-            # Ensure 'Date' column is in datetime format
-            df['Date'] = pd.to_datetime(df['Date'])
+        if selected_date:
+            filtered_df = df[df['Date'].dt.date == selected_date]
 
-            # Filter data based on selected date
-            unique_dates = df['Date'].dt.date.unique()
-            selected_date = st.selectbox("Select a Date", unique_dates, index=None)
+            col1, col2 = st.columns(2)
+            columns = filtered_df.columns.tolist()
+            columns.remove('Time')  # Remove 'Time' from parameter selection as it will be used for x-axis
 
-            if selected_date:
-                filtered_df = df[df['Date'].dt.date == selected_date]
+            with col1:
+                st.write(" ")
+                st.write(filtered_df.head())
 
-                col1, col2 = st.columns(2)
-                columns = filtered_df.columns.tolist()
-                columns.remove('Time')  # Remove 'Time' from parameter selection as it will be used for x-axis
+            with col2:
+                y_axis = st.selectbox("Select the Parameter", options=columns + ["None"])
+                plot_list = ["Line Plot", "Bar Chart", "Scatter Plot", "Distribution Plot", "Count Plot"]
+                selected_plot = st.selectbox("Select a Plot", plot_list, index=None)
 
-                with col1:
-                    st.write(" ")
-                    st.write(filtered_df.head())
+            if st.button("Generate Plot"):
+                # Plotting section
+                fig, ax = plt.subplots(figsize=(10, 8))
+                if selected_plot == "Line Plot":
+                    sns.lineplot(x=filtered_df['Time'], y=filtered_df[y_axis], ax=ax)
+                elif selected_plot == "Bar Chart":
+                    sns.barplot(x=filtered_df['Time'], y=filtered_df[y_axis], ax=ax)
+                elif selected_plot == "Distribution Plot":
+                    sns.histplot(filtered_df[y_axis], kde=True, ax=ax)
+                elif selected_plot == "Scatter Plot":
+                    sns.scatterplot(x=filtered_df['Time'], y=filtered_df[y_axis], ax=ax)
+                elif selected_plot == "Count Plot":
+                    sns.countplot(x=filtered_df['Time'], ax=ax)
 
-                with col2:
-                    y_axis = st.selectbox("Select the Parameter", options=columns + ["None"])
-                    plot_list = ["Line Plot", "Bar Chart", "Scatter Plot", "Distribution Plot", "Count Plot"]
-                    selected_plot = st.selectbox("Select a Plot", plot_list, index=None)
+                plt.title(f"{selected_sheet} on {selected_date}: {y_axis} vs Time")
+                plt.xlabel('Time')
+                plt.ylabel(y_axis)
 
-                if st.button("Generate Plot"):
-                    fig, ax = plt.subplots(figsize=(10, 8))
-                    if selected_plot == "Line Plot":
-                        sns.lineplot(x=filtered_df['Time'], y=filtered_df[y_axis], ax=ax)
-                    elif selected_plot == "Bar Chart":
-                        sns.barplot(x=filtered_df['Time'], y=filtered_df[y_axis], ax=ax)
-                    elif selected_plot == "Distribution Plot":
-                        sns.histplot(filtered_df[y_axis], kde=True, ax=ax)
-                    elif selected_plot == "Scatter Plot":
-                        sns.scatterplot(x=filtered_df['Time'], y=filtered_df[y_axis], ax=ax)
-                    elif selected_plot == "Count Plot":
-                        sns.countplot(x=filtered_df['Time'], ax=ax)
+                # Rotate x-axis labels and set font size
+                plt.xticks(rotation=45, ha='right', fontsize=10)
+                plt.tight_layout()  # Adjust layout to make room for x-axis labels
 
-                    plt.title(f"{selected_worksheet} on {selected_date}: {y_axis} vs Time")
-                    plt.xlabel('Time')
-                    plt.ylabel(y_axis)
-
-                    # Rotate x-axis labels and set font size
-                    plt.xticks(rotation=45, ha='right', fontsize=10)
-                    plt.tight_layout()  # Adjust layout to make room for x-axis labels
-
-                    st.pyplot(fig)
+                st.pyplot(fig)
