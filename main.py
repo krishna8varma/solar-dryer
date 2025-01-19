@@ -83,7 +83,8 @@ if page == "Overview":
     # Iterate over the dryer sheets and display the data
     for dryer in dryer_sheets:
         worksheet = spreadsheet.worksheet(dryer)
-        data = worksheet.get_all_records()
+        headers = worksheet.row_values(1)
+        data = worksheet.get_all_records(expected_headers=headers)
         df = pd.DataFrame(data)
 
         # Ensure Date is in datetime format
